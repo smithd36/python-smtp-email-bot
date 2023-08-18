@@ -17,7 +17,7 @@ envars = current_dir / ".env"
 load_dotenv(envars)
 
 # Read environment variables
-seander_email = os.getenv("EMAIL")
+sender_email = os.getenv("EMAIL")
 password_email = os.getenv("PASSWORD")
 db_host = os.getenv("DB_HOST")
 db_user = os.getenv("DB_USER")
@@ -39,13 +39,13 @@ def get_expirationDate():
 
     # Define the columns and their corresponding names
     columns = [
-        ("DOT_EXP", "DOT License"),
-        ("PALS_EXP", "PALS License"),
-        ("ACLS_EXP", "ACLS License"),
-        ("EMS_EXP", "EMS License"),
-        ("DRIVERS_EXP", "Drivers License"),
-        ("BLS_EXP", "BLS License"),
-        ("MVR_EXP", "MVR License")
+        ("dotExp", "DOT License"),
+        ("palsExp", "PALS License"),
+        ("aclsExp", "ACLS License"),
+        ("emsExp", "EMS License"),
+        ("driversExp", "Drivers License"),
+        ("blsExp", "BLS License"),
+        ("mvrExp", "MVR License")
     ]
 
     # Get the current date
@@ -58,28 +58,21 @@ def get_expirationDate():
     # Iterate over the columns
     for column in columns:
         column_name = column[1]
-
-        # Execute the SQL query to get the expiration date
-        query = "SELECT {} FROM employee".format(column[0])
+        query = "SELECT {} FROM employees WHERE {} IS NOT NULL".format(column[0], column[0])
         cursor.execute(query)
-
-        # Fetch all rows
         rows = cursor.fetchall()
 
-        # Iterate over the rows
         for row in rows:
             expiration_date = row[0]
-
-            # Calculate the difference between the expiration date and the current date
             difference = expiration_date - current_date
 
             # Check if the difference is 60, 30, 15, or 1 day
-            if difference in [timedelta(days=60), timedelta(days=30), timedelta(days=15), timedelta(days=1)]:
+            if difference in [timedelta(days=90), timedelta(days=60), timedelta(days=45), timedelta(days=30), timedelta(days=15), timedelta(days=7), timedelta(days=1)]:
                 # Calculate the number of days before expiration
                 days_before_expiration = (expiration_date - current_date).days
 
                 # Get the associated person's email
-                query = "SELECT EMAIL, NAME FROM employee WHERE {} = %s".format(column[0])
+                query = "SELECT EMAIL, NAME FROM employees WHERE {} = %s".format(column[0])
                 cursor.execute(query, (expiration_date,))
                 result = cursor.fetchone()
 
@@ -88,7 +81,16 @@ def get_expirationDate():
                     name = result[1]
 
                     # Send email
-                    send_email("NOTICE: Upcoming Expiration", email, name, str(expiration_date), column_name, days_before_expiration)
+                    # Modify the send_email function call in get_expirationDate function
+                    send_email(
+                        "NOTICE: Upcoming Expiration",
+                        ["Dreysmith101@gmail.com, piglife60@gmail.com"],  # Add the additional email addresses here
+                        name,
+                        str(expiration_date),
+                        column_name,
+                        days_before_expiration
+                    )                   
+
 
     # Close the cursor and database connection
     cursor.close()
@@ -101,8 +103,8 @@ def send_email(subject, receiver_email, name, expirationDate, columnName, days_b
     # Create basis message
     msg = EmailMessage()
     msg["Subject"] = subject
-    msg["From"] = formataddr(("Your Email Agent", seander_email))
-    msg["To"] = formataddr((name, receiver_email))
+    msg["From"] = formataddr(("ResQCert Email Bot", sender_email))
+    msg["To"] = ", ".join(receiver_email)  # Join the emails
 
     # Create message body
     msg.set_content(f"Hello,\n\n{name}'s {columnName} is expiring on {expirationDate}. Only {days_before_expiration} day(s) left.\n\nBest regards,\nYour Email Agent")
@@ -115,7 +117,7 @@ def send_email(subject, receiver_email, name, expirationDate, columnName, days_b
             <p>Hello,</p>
             <p>{name}'s {columnName} is expiring on {expirationDate}. Only {days_before_expiration} day(s) left.</p>
             <p>Best regards,</p>
-            <p>Your Email Agent</p>
+            <p>ResQCert Email Bot</p>
         </body>
     </html>
     """, subtype="html")
@@ -123,7 +125,7 @@ def send_email(subject, receiver_email, name, expirationDate, columnName, days_b
     # Send email
     with smtplib.SMTP(SMTP_SERVER, PORT) as server:
         server.starttls()
-        server.login(seander_email, password_email)
+        server.login(sender_email, password_email)
         server.send_message(msg)
 
 if __name__ == "__main__":
